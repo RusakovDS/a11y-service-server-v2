@@ -1,0 +1,17 @@
+version: '3.7'
+services:
+  db:
+    container_name: pg
+    hostname: postgres
+    image: postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: a11y-db
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    ports:
+      - "5438:5432"
+
+volumes:
+  postgres:
