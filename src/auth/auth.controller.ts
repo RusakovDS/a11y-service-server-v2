@@ -11,8 +11,8 @@ import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { AuthDto } from './dto';
 import { JwtRefreshTokenGuard } from './guard';
-import { GetUser } from './decorator';
-import { JwtPayloadWithRefreshToken, Tokens } from 'src/tokens/types';
+import { GetRefreshToken, GetUser } from './decorator';
+import { RefreshTokenPayload, Tokens } from 'src/tokens/types';
 
 @Controller('auth')
 export class AuthController {
@@ -22,17 +22,16 @@ export class AuthController {
   async signup(
     @Body() authDto: AuthDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<void> {
-    const authToken = await this.authService.signup(authDto);
-    res.cookie('access_token', authToken.accessToken, {
-      maxAge: 1000 * 60 * 15,
+  ) {
+    const userWithTokens = await this.authService.signup(authDto);
+    res.cookie('refresh_token', userWithTokens.tokens.refreshToken, {
+      maxAge: 1000 * 60 * 60 * 24 * 30,
       httpOnly: true,
     });
-    res.cookie('refresh_token', authToken.refreshToken, {
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-      httpOnly: true,
-    });
-    return;
+    return {
+      user: userWithTokens.user,
+      access_token: userWithTokens.tokens.accessToken,
+    };
   }
 
   @HttpCode(HttpStatus.OK)
@@ -40,42 +39,41 @@ export class AuthController {
   async signin(
     @Body() authDto: AuthDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<void> {
-    const authTokens: Tokens = await this.authService.signin(authDto);
-    res.cookie('access_token', authTokens.accessToken, {
-      maxAge: 1000 * 60 * 15,
+  ) {
+    const userWithTokens = await this.authService.signin(authDto);
+    res.cookie('refresh_token', userWithTokens.tokens.refreshToken, {
+      maxAge: 1000 * 60 * 60 * 24 * 30,
       httpOnly: true,
     });
-    res.cookie('refresh_token', authTokens.refreshToken, {
-      maxAge: 1000 * 15,
-      // maxAge: 1000 * 60 * 60 * 24 * 7,
-      httpOnly: true,
-    });
-    return;
+    return {
+      user: userWithTokens.user,
+      access_token: userWithTokens.tokens.accessToken,
+    };
   }
 
   @Post('logout')
-  logout() {
-    return this.authService.logout();
+  async logout(
+    @GetRefreshToken() refreshToken: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<boolean> {
+    res.clearCookie('refresh_token');
+    return this.authService.logout(refreshToken);
   }
 
   @UseGuards(JwtRefreshTokenGuard)
   @Post('refresh')
   async refreshTokens(
-    @GetUser() userWithRefreshToken: JwtPayloadWithRefreshToken,
+    @GetUser() userWithRefreshToken: RefreshTokenPayload,
     @Res({ passthrough: true }) res: Response,
   ) {
     const authTokens: Tokens = await this.authService.refreshTokens(
       userWithRefreshToken,
     );
-    res.cookie('access_token', authTokens.accessToken, {
-      maxAge: 1000 * 60 * 15,
-      httpOnly: true,
-    });
     res.cookie('refresh_token', authTokens.refreshToken, {
-      maxAge: 1000 * 60 * 60 * 24 * 7,
       httpOnly: true,
     });
-    return;
+    return {
+      accessToken: authTokens.accessToken,
+    };
   }
 }

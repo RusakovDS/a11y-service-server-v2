@@ -5,7 +5,8 @@ import { AuthDto } from './dto';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime';
 import { ConfigService } from '@nestjs/config';
 import { TokensService } from 'src/tokens/tokens.service';
-import { JwtPayloadWithRefreshToken, Tokens } from 'src/tokens/types';
+import { RefreshTokenPayload, Tokens } from 'src/tokens/types';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -15,7 +16,9 @@ export class AuthService {
     private tokensService: TokensService,
   ) {}
 
-  async signup(authDto: AuthDto): Promise<Tokens> {
+  async signup(
+    authDto: AuthDto,
+  ): Promise<{ user: Partial<User>; tokens: Tokens }> {
     const { email, password, firstName, lastName } = authDto;
 
     const hash = await this.hashData(password);
@@ -28,21 +31,34 @@ export class AuthService {
           firstName,
           lastName,
         },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
       });
 
       const tokens = this.tokensService.generateTokens(user.id, user.email);
       await this.tokensService.saveRefreshToken(user.id, tokens.refreshToken);
 
-      return tokens;
+      return {
+        user,
+        tokens,
+      };
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2002')
-          throw new ForbiddenException('Email is already exist.');
+          throw new ForbiddenException(
+            'Usert with such email is already exist.',
+          );
       }
     }
   }
 
-  async signin(authDto: AuthDto): Promise<Tokens> {
+  async signin(
+    authDto: AuthDto,
+  ): Promise<{ user: Partial<User>; tokens: Tokens }> {
     const { email, password } = authDto;
 
     const user = await this.prisma.user.findUnique({
@@ -64,15 +80,24 @@ export class AuthService {
     const tokens = this.tokensService.generateTokens(user.id, user.email);
     await this.tokensService.saveRefreshToken(user.id, tokens.refreshToken);
 
-    return tokens;
+    // meh
+    delete user.hash;
+
+    return {
+      user,
+      tokens,
+    };
   }
 
-  async logout() {
-    return 'logout';
+  async logout(refreshToken: string): Promise<boolean> {
+    if (!refreshToken) return;
+    await this.tokensService.removeRefreshToken(refreshToken);
+
+    return true;
   }
 
-  async refreshTokens(userWithRefreshToken: JwtPayloadWithRefreshToken) {
-    const { sub: userId, email, refresh_token } = userWithRefreshToken;
+  async refreshTokens(userWithRefreshToken: RefreshTokenPayload) {
+    const { id: userId, email, refresh_token } = userWithRefreshToken;
     const token = await this.prisma.token.findUnique({
       where: {
         userId,

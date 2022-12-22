@@ -60,4 +60,15 @@ export class TokensService {
       });
     }
   }
+
+  async removeRefreshToken(refreshToken: string): Promise<void> {
+    const { sub: userId } = this.jwtService.verify(refreshToken, {
+      secret: this.config.get<string>('REFRESH_TOKEN_SECRET'),
+    });
+    await this.prisma.token.deleteMany({
+      where: {
+        userId,
+      },
+    });
+  }
 }

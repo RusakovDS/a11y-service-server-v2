@@ -4,12 +4,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Request } from 'express';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { JwtPayloadWithRefreshToken } from 'src/tokens/types';
-
-interface AccessTokenPayload {
-  sub: string;
-  email: string;
-}
+import { JwtPayload, RefreshTokenPayload } from 'src/tokens/types';
 
 @Injectable()
 export class RtStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
@@ -28,17 +23,15 @@ export class RtStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
     });
   }
 
-  validate(
-    req: Request,
-    payload: AccessTokenPayload,
-  ): JwtPayloadWithRefreshToken {
+  validate(req: Request, payload: JwtPayload): RefreshTokenPayload {
     const refresh_token = req?.cookies?.refresh_token;
     if (!refresh_token) {
       throw new BadRequestException('Token was malformed');
     }
 
     return {
-      ...payload,
+      id: payload.sub,
+      email: payload.email,
       refresh_token,
     };
   }
