@@ -23,14 +23,15 @@ export class AuthController {
     @Body() authDto: AuthDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const userWithTokens = await this.authService.signup(authDto);
-    res.cookie('refresh_token', userWithTokens.tokens.refreshToken, {
+    const { user, tokens } = await this.authService.signup(authDto);
+    res.cookie('refresh_token', tokens.refreshToken, {
       maxAge: 1000 * 60 * 60 * 24 * 30,
       httpOnly: true,
+      sameSite: true
     });
     return {
-      user: userWithTokens.user,
-      access_token: userWithTokens.tokens.accessToken,
+      user,
+      token: tokens.accessToken
     };
   }
 
@@ -40,14 +41,15 @@ export class AuthController {
     @Body() authDto: AuthDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const userWithTokens = await this.authService.signin(authDto);
-    res.cookie('refresh_token', userWithTokens.tokens.refreshToken, {
+    const { user, tokens } = await this.authService.signin(authDto);
+    res.cookie('refresh_token', tokens.refreshToken, {
       maxAge: 1000 * 60 * 60 * 24 * 30,
       httpOnly: true,
+      sameSite: true
     });
     return {
-      user: userWithTokens.user,
-      access_token: userWithTokens.tokens.accessToken,
+      user,
+      token: tokens.accessToken
     };
   }
 
@@ -73,7 +75,7 @@ export class AuthController {
       httpOnly: true,
     });
     return {
-      accessToken: authTokens.accessToken,
+      token: authTokens.accessToken
     };
   }
 }
