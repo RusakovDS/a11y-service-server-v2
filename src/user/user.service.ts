@@ -19,7 +19,7 @@ export class UserService {
     });
 
     if (!user) {
-      throw new ForbiddenException('Email is already exist.');
+      throw new ForbiddenException('User does not exist');
     }
 
     return user;
