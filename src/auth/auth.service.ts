@@ -12,7 +12,6 @@ import { User } from '@prisma/client';
 export class AuthService {
   constructor(
     private prisma: PrismaService,
-    private config: ConfigService,
     private tokensService: TokensService,
   ) {}
 
