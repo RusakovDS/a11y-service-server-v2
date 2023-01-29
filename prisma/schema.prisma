@@ -21,10 +21,23 @@ model User {
   firstName String?
   lastName  String?
   Token     Token?
+  Project   Project[]
 }
 
 model Token {
   userId           String @unique
   user             User   @relation(fields: [userId], references: [id])
   refreshTokenHash String
+}
+
+model Project {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  title String
+  urls  String[]
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId String
 }
